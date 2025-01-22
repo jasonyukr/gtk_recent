@@ -66,6 +66,7 @@ fn main() {
     }
 
     entries.sort();
+    entries.reverse();
 
     for e in entries {
         let elist: Vec<&str> = e.split(" ").collect();
