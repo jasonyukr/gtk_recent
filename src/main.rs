@@ -18,7 +18,6 @@ fn url_decode(encoded: &str) -> String {
 
 fn main() {
     let args: Vec<_> = env::args().collect();
-    let file: File;
     let mut entries: Vec<String> = Vec::new();
     if let Some(path) = env::home_dir() {
         let mut filename = format!("{}/{}", path.display(), ".local/share/recently-used.xbel");
@@ -35,28 +34,33 @@ fn main() {
                 let mut href = String::new();
                 let mut modified = String::new();
                 let parts = ln.trim().split(" ");
-                'outer: for part in parts {
+                for part in parts {
                     let nvlist: Vec<&str> = part.split("\"").collect();
-                    for mut i in 0..nvlist.len() {
+                    let mut i = 0;
+                    while i < nvlist.len() {
                         if nvlist[i].eq("href=") && i + 1 < nvlist.len() {
                             href = nvlist[i + 1].to_string();
                             if href.starts_with("file://") {
                                 href = href[7..].to_string();
                             } else {
-                                break 'outer;
+                                href = String::new();
                             }
                             if href.contains("%") {
                                 href = url_decode(&href);
                             }
-                            i = i + 1;
+                            i = i + 2;
                         } else if nvlist[i].eq("modified=") && i + 1 < nvlist.len() {
                             modified = nvlist[i + 1].to_string();
+                            i = i + 2;
+                        } else {
                             i = i + 1;
                         }
                     }
                 }
-                let comp = format!("{} {}", modified, href);
-                entries.push(comp);
+                if modified.len() > 0 && href.len() > 0 {
+                    let comp = format!("{} {}", modified, href);
+                    entries.push(comp);
+                }
             }
         }
     }
@@ -65,7 +69,7 @@ fn main() {
 
     for e in entries {
         let elist: Vec<&str> = e.split(" ").collect();
-        if elist.len() == 2 {
+        if elist.len() >= 2 {
             println!("{}", elist[1]);
         }
     }
