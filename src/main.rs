@@ -69,9 +69,9 @@ fn main() {
     entries.reverse();
 
     for e in entries {
-        let elist: Vec<&str> = e.split(" ").collect();
-        if elist.len() >= 2 {
-            println!("{}", elist[1]);
+        if e.len() > 28 {
+            // print filename only
+            println!("{}", &e[28..]);
         }
     }
 }
