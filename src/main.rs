@@ -1,10 +1,8 @@
+use percent_encoding::percent_decode_str;
 use std::io::{self, BufRead};
 use std::env;
-use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
-
-const DEBUG: bool = false;
 
 // The output is wrapped in a Result to allow matching on errors.
 // Returns an Iterator to the Reader of the lines of the file.
@@ -14,10 +12,14 @@ where P: AsRef<Path>, {
     Ok(io::BufReader::new(file).lines())
 }
 
+fn url_decode(encoded: &str) -> String {
+    percent_decode_str(encoded).decode_utf8_lossy().to_string()
+}
+
 fn main() {
     let args: Vec<_> = env::args().collect();
     let file: File;
-    let mut entries: Vec<&str> = Vec::new();
+    let mut entries: Vec<String> = Vec::new();
     if let Some(path) = env::home_dir() {
         let mut filename = format!("{}/{}", path.display(), ".local/share/recently-used.xbel");
         if args.len() == 2 {
@@ -30,22 +32,41 @@ fn main() {
                 if !ln.starts_with("<bookmark href=") {
                     continue
                 }
+                let mut href = String::new();
+                let mut modified = String::new();
                 let parts = ln.trim().split(" ");
-                for part in parts {
+                'outer: for part in parts {
                     let nvlist: Vec<&str> = part.split("\"").collect();
-                    let mut href;
-                    let mut modified;
-                    for i in 0..nvlist.len() {
+                    for mut i in 0..nvlist.len() {
                         if nvlist[i].eq("href=") && i + 1 < nvlist.len() {
-//                            println!("HREF {}", nvlist[i + 1]);
-                            href = nvlist[i + 1];
+                            href = nvlist[i + 1].to_string();
+                            if href.starts_with("file://") {
+                                href = href[7..].to_string();
+                            } else {
+                                break 'outer;
+                            }
+                            if href.contains("%") {
+                                href = url_decode(&href);
+                            }
+                            i = i + 1;
                         } else if nvlist[i].eq("modified=") && i + 1 < nvlist.len() {
-//                            println!("MOD {}", nvlist[i + 1]);
-                            modified = nvlist[i + 1];
+                            modified = nvlist[i + 1].to_string();
+                            i = i + 1;
                         }
                     }
                 }
+                let comp = format!("{} {}", modified, href);
+                entries.push(comp);
             }
+        }
+    }
+
+    entries.sort();
+
+    for e in entries {
+        let elist: Vec<&str> = e.split(" ").collect();
+        if elist.len() == 2 {
+            println!("{}", elist[1]);
         }
     }
 }
